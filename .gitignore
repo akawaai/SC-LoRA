@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+uv.lock
+
+# Runtime caches and local data
+.cache/
+.cache_user/
+.config/
+.nv/
+data_cache/
+nltk_data/
+tasks.json
+logs/
+
+# Experiment outputs (generated locally; publish curated artifacts separately)
+outputs/
+outputs_real/
+outputs_lighteval_user/
+
+# Model weights and checkpoints
+*.pt
+*.pth
+*.ckpt
+*.bin
+*.safetensors
+
+# IDE / agent markers
+.codex

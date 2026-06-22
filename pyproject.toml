@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sc-lora"
+version = "0.1.0"
+description = "Steering-Conditioned LoRA for continual multi-domain fine-tuning"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+  { name = "David O'Neil Campos Ferreira" },
+  { name = "Diogo Fernandes Costa Silva" },
+  { name = "Arlindo Rodrigues Galvão Filho" },
+]
+dependencies = [
+  "torch>=2.2.0",
+  "numpy>=1.26.0",
+  "matplotlib>=3.8.0",
+  "transformers>=4.45.0",
+  "datasets>=2.20.0",
+  "accelerate>=0.33.0",
+  "safetensors>=0.4.5",
+  "tqdm>=4.66.0",
+  "bitsandbytes",
+  "peft",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["sc_lora*"]
