@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SC-LoRA | Steering-Conditioned LoRA</title>
+  <meta name="description" content="Official project page for Steering-Conditioned LoRA (SC-LoRA): SAE-guided conditional LoRA with specialist routing and dynamic rank for continual multi-domain fine-tuning.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+  <header class="hero">
+    <div class="container">
+      <p class="eyebrow">ICML 2026 · CoLorAI Workshop</p>
+      <h1>Steering-Conditioned LoRA for Continual Multi-Domain Fine-Tuning</h1>
+      <p class="subtitle">
+        SC-LoRA routes low-rank adaptation through sparse autoencoder features and steering prototypes,
+        enabling domain specialization while limiting catastrophic forgetting on prior tasks.
+      </p>
+
+      <div class="authors">
+        <span>David Oneil Campos Ferreira</span>
+        <span>Diogo Fernandes Costa Silva</span>
+        <span>Arlindo Rodrigues Galvão Filho</span>
+      </div>
+      <p class="affiliation">AKCIT · Gênese Digital · CEMIG/ANEEL</p>
+
+      <div class="hero-actions">
+        <a class="button primary" href="https://github.com/akawaai/SC-LoRA">Code</a>
+        <a class="button" href="https://colorai-workshop.github.io/">CoLorAI Workshop</a>
+        <a class="button" href="#method">Method</a>
+        <a class="button" href="#installation">Install</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="section">
+      <div class="container narrow">
+        <h2>Abstract</h2>
+        <p class="section-intro">
+          Parameter-efficient fine-tuning methods such as LoRA adapt a shared low-rank update across all inputs,
+          which makes them efficient but poorly suited to continual learning across heterogeneous domains.
+          <strong>Steering-Conditioned LoRA (SC-LoRA)</strong> conditions adapter selection on interpretable latent structure:
+          layerwise sparse autoencoder features, a taxonomy of general versus domain-specific units, and steering prototypes
+          that encode where each domain lives in feature space. A bank of specialist LoRA adapters is routed, ranked, and
+          compacted dynamically, with optional replay to preserve prior domains. The result is a modular PEFT stack that
+          separates <em>what</em> to adapt from <em>when</em> and <em>how much</em> to adapt.
+        </p>
+      </div>
+    </section>
+
+    <section class="section alt">
+      <div class="container">
+        <h2>Why SC-LoRA</h2>
+        <div class="cards three">
+          <article class="card">
+            <h3>SAE-Guided Routing</h3>
+            <p>
+              Adapter gates read sparse feature activations instead of raw hidden states, grounding routing in
+              mechanistically meaningful structure rather than opaque logits alone.
+            </p>
+          </article>
+          <article class="card">
+            <h3>Dynamic Rank Control</h3>
+            <p>
+              Rank controllers allocate capacity per specialist and per layer, expanding where a domain needs expressivity
+              and compressing elsewhere to stay within a parameter budget.
+            </p>
+          </article>
+          <article class="card">
+            <h3>Continual Learning Ready</h3>
+            <p>
+              Preservation losses, replay buffers, and memory policies for spawning, merging, and pruning specialists
+              target reduced interference when new domains arrive sequentially.
+            </p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="method">
+      <div class="container">
+        <h2>Method</h2>
+        <p class="section-intro">
+          SC-LoRA treats continual fine-tuning as conditional low-rank adaptation over a frozen backbone.
+          The pipeline below is implemented in the open-source <code class="inline">sc_lora</code> package.
+        </p>
+
+        <div class="pipeline-diagram" aria-label="SC-LoRA pipeline diagram">
+          <div class="pipeline-row">
+            <div class="pipeline-node">
+              <strong>1. Activations</strong>
+              <span>Hook selected layers on a frozen LLM</span>
+            </div>
+            <div class="pipeline-arrow">→</div>
+            <div class="pipeline-node">
+              <strong>2. SAE</strong>
+              <span>Train layerwise sparse autoencoders</span>
+            </div>
+            <div class="pipeline-arrow">→</div>
+            <div class="pipeline-node">
+              <strong>3. Taxonomy</strong>
+              <span>Split general vs domain features</span>
+            </div>
+          </div>
+          <div class="pipeline-row" style="margin-top: 14px;">
+            <div class="pipeline-node">
+              <strong>4. Prototypes</strong>
+              <span>Build steering vectors per domain</span>
+            </div>
+            <div class="pipeline-arrow">→</div>
+            <div class="pipeline-node">
+              <strong>5. SC-LoRA Bank</strong>
+              <span>Route specialists with gates &amp; rank</span>
+            </div>
+            <div class="pipeline-arrow">→</div>
+            <div class="pipeline-node">
+              <strong>6. Evaluation</strong>
+              <span>Forgetting, routing, mechanistic metrics</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="split" style="margin-top: 32px;">
+          <div>
+            <ol class="steps">
+              <li>Collect activations from probe, general, and domain datasets via forward hooks.</li>
+              <li>Train sparse autoencoders per hooked layer to obtain feature codes <code class="inline">z</code>.</li>
+              <li>Estimate general and domain feature masks; build steering prototypes and covariances.</li>
+              <li>Initialize a conditional LoRA adapter bank with gate, rank, and budget controllers.</li>
+              <li>Train sequentially with task, preservation, steering, and sparsity regularizers; optionally replay prior domains.</li>
+              <li>Evaluate routing specialization, sequential forgetting, interference, and SAE alignment.</li>
+            </ol>
+          </div>
+          <aside class="equation-box">
+            <h3>Conditional update</h3>
+            <p>Each forward pass selects specialists and effective rank from SAE features and prototypes:</p>
+            <code>ΔW = Σ_k g_k(z, p_d) · B_k A_k</code>
+            <code>rank_k = f_rank(z, budget)</code>
+            <p class="small-note">
+              Gates <code class="inline">g_k</code> depend on sparse codes; prototypes <code class="inline">p_d</code> steer domain context;
+              memory policy spawns, merges, or prunes specialists over training.
+            </p>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <section class="section alt">
+      <div class="container">
+        <h2>Core Library</h2>
+        <p class="section-intro">
+          The repository ships a modular PyTorch implementation designed to be composed with your own models and dataloaders.
+        </p>
+
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <span class="metric-value">8</span>
+            <span class="metric-label">Pipeline stages from hooks to eval</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-value">SAE</span>
+            <span class="metric-label">Layerwise sparse feature basis</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-value">LoRA</span>
+            <span class="metric-label">Conditional specialist adapter bank</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-value">Replay</span>
+            <span class="metric-label">Optional continual-learning buffer</span>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Module</th>
+                <th>Role</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code class="inline">pipeline.py</code></td>
+                <td>End-to-end orchestration</td>
+              </tr>
+              <tr>
+                <td><code class="inline">training.py</code></td>
+                <td>Activation collection, SAE training, SC-LoRA training</td>
+              </tr>
+              <tr>
+                <td><code class="inline">lora.py</code></td>
+                <td>Adapter bank, routing, memory policy</td>
+              </tr>
+              <tr>
+                <td><code class="inline">sae.py</code></td>
+                <td>Sparse autoencoder variants and ablations</td>
+              </tr>
+              <tr>
+                <td><code class="inline">evaluation.py</code></td>
+                <td>Forgetting, interference, routing, mechanistic metrics</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="installation">
+      <div class="container narrow">
+        <h2>Installation</h2>
+        <div class="equation-box">
+          <code>git clone https://github.com/akawaai/SC-LoRA.git</code>
+          <code>cd SC-LoRA</code>
+          <code>python -m venv .venv && source .venv/bin/activate</code>
+          <code>pip install -e .</code>
+        </div>
+        <p class="section-intro" style="margin-top: 24px;">
+          Quick API entry point:
+        </p>
+        <div class="equation-box">
+          <code>from sc_lora import run_poster_level_pipeline, SCLoRAConfig, SAEConfig</code>
+        </div>
+        <p class="small-note">
+          See the
+          <a href="https://github.com/akawaai/SC-LoRA">GitHub repository</a>
+          for configuration dataclasses, evaluation utilities, and programmatic building blocks.
+        </p>
+      </div>
+    </section>
+
+    <section class="section alt">
+      <div class="container narrow">
+        <h2>Contributions</h2>
+        <div class="cards two">
+          <article class="card">
+            <h3>Steering-conditioned adaptation</h3>
+            <p>
+              Connects PEFT to sparse feature geometry via SAE codes and domain prototypes, making adapter routing
+              interpretable and domain-aware.
+            </p>
+          </article>
+          <article class="card">
+            <h3>Modular continual-learning stack</h3>
+            <p>
+              Combines specialist banks, dynamic rank, memory compaction, and replay in one library suitable for
+              sequential domain fine-tuning experiments.
+            </p>
+          </article>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer-inner">
+      <span>
+        SC-LoRA ·
+        <a href="https://github.com/akawaai/SC-LoRA">GitHub</a> ·
+        <a href="https://colorai-workshop.github.io/">CoLorAI 2026</a>
+      </span>
+      <span>Funded by Gênese Digital / AKCIT / CEMIG-ANEEL</span>
+    </div>
+  </footer>
+</body>
+</html>

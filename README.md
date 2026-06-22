@@ -2,6 +2,8 @@
 
 Official implementation of **Steering-Conditioned LoRA (SC-LoRA)**, published at [The 2nd Workshop on Connecting Low-rank Representations in AI (CoLorAI)](https://colorai-workshop.github.io/) (ICML 2026).
 
+Project page: [GitHub Pages](https://akawaai.github.io/SC-LoRA/).
+
 **Authors:** [David O'Neil Campos Ferreira](https://github.com/davidoneilai), Diogo Fernandes Costa Silva, Arlindo Rodrigues Galvão Filho
 
 SC-LoRA combines sparse autoencoder (SAE) features, steering prototypes, and a conditional LoRA adapter bank with specialist routing and dynamic rank control. The method targets specialization on new domains while limiting catastrophic forgetting on prior domains.
@@ -72,6 +74,7 @@ You provide the model, dataloaders, and hook configuration. The pipeline handles
 
 ```text
 SC-LoRa/
+├── docs/             # GitHub Pages project site
 ├── sc_lora/          # Core library
 ├── LICENSE
 ├── pyproject.toml
